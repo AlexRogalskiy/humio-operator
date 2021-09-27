@@ -66,7 +66,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioCluster: Creating shared test cluster")
 			clusterKey := types.NamespacedName{
 				Name:      "humiocluster-shared",
-				Namespace: "default",
+				Namespace: testProcessID,
 			}
 			cluster := constructBasicSingleNodeHumioCluster(clusterKey, true)
 			ctx := context.Background()
@@ -75,7 +75,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioIngestToken: Creating Humio Ingest token with token target secret")
 			key := types.NamespacedName{
 				Name:      "humioingesttoken-with-token-secret",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateIngestToken := &humiov1alpha1.HumioIngestToken{
@@ -84,7 +84,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioIngestTokenSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               key.Name,
 					ParserName:         "json",
 					RepositoryName:     "humio",
@@ -154,7 +154,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioIngestToken: Should handle ingest token correctly without token target secret")
 			key = types.NamespacedName{
 				Name:      "humioingesttoken-without-token-secret",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateIngestToken = &humiov1alpha1.HumioIngestToken{
@@ -163,7 +163,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioIngestTokenSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               key.Name,
 					ParserName:         "accesslog",
 					RepositoryName:     "humio",
@@ -223,7 +223,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioRepository: Should handle repository correctly")
 			key = types.NamespacedName{
 				Name:      "humiorepository",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateRepository := &humiov1alpha1.HumioRepository{
@@ -232,7 +232,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioRepositorySpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-repository",
 					Description:        "important description",
 					Retention: humiov1alpha1.HumioRetention{
@@ -323,7 +323,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioView: Should handle view correctly")
 			viewKey := types.NamespacedName{
 				Name:      "humioview",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			repositoryToCreate := &humiov1alpha1.HumioRepository{
@@ -332,7 +332,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: viewKey.Namespace,
 				},
 				Spec: humiov1alpha1.HumioRepositorySpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-repository-view",
 					Description:        "important description",
 					Retention: humiov1alpha1.HumioRetention{
@@ -354,7 +354,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: viewKey.Namespace,
 				},
 				Spec: humiov1alpha1.HumioViewSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-view",
 					Connections:        connections,
 				},
@@ -442,7 +442,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			By("HumioParser: Should handle parser correctly")
 			spec := humiov1alpha1.HumioParserSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-parser",
 				RepositoryName:     "humio",
 				ParserScript:       "kvParse()",
@@ -452,7 +452,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humioparser",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateParser := &humiov1alpha1.HumioParser{
@@ -520,7 +520,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioExternalCluster: Should handle externalcluster correctly")
 			key = types.NamespacedName{
 				Name:      "humioexternalcluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			protocol := "http"
 			if os.Getenv("TEST_USE_EXISTING_CLUSTER") == "true" {
@@ -533,10 +533,13 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioExternalClusterSpec{
-					Url:                fmt.Sprintf("%s://humiocluster-shared.default:8080/", protocol),
-					APITokenSecretName: "humiocluster-shared-admin-token",
-					Insecure:           true,
+					Url:                fmt.Sprintf("%s://%s.%s:8080/", protocol, clusterKey.Name, clusterKey.Namespace),
+					APITokenSecretName: fmt.Sprintf("%s-admin-token", clusterKey.Name),
 				},
+			}
+
+			if protocol == "http" {
+				toCreateExternalCluster.Spec.Insecure = true
 			}
 
 			By("HumioExternalCluster: Creating the external cluster successfully")
@@ -559,7 +562,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioIngestToken: Creating ingest token pointing to non-existent managed cluster")
 			keyErr := types.NamespacedName{
 				Name:      "humioingesttoken-non-existent-managed-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateIngestToken = &humiov1alpha1.HumioIngestToken{
 				ObjectMeta: metav1.ObjectMeta{
@@ -593,7 +596,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioIngestToken: Creating ingest token pointing to non-existent external cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humioingesttoken-non-existent-external-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateIngestToken = &humiov1alpha1.HumioIngestToken{
 				ObjectMeta: metav1.ObjectMeta{
@@ -627,7 +630,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioParser: Creating ingest token pointing to non-existent managed cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humioparser-non-existent-managed-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateParser = &humiov1alpha1.HumioParser{
 				ObjectMeta: metav1.ObjectMeta{
@@ -660,7 +663,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioParser: Creating ingest token pointing to non-existent external cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humioparser-non-existent-external-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateParser = &humiov1alpha1.HumioParser{
 				ObjectMeta: metav1.ObjectMeta{
@@ -693,7 +696,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioRepository: Creating repository pointing to non-existent managed cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humiorepository-non-existent-managed-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateRepository = &humiov1alpha1.HumioRepository{
 				ObjectMeta: metav1.ObjectMeta{
@@ -724,7 +727,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioRepository: Creating repository pointing to non-existent external cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humiorepository-non-existent-external-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateRepository = &humiov1alpha1.HumioRepository{
 				ObjectMeta: metav1.ObjectMeta{
@@ -755,7 +758,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioView: Creating repository pointing to non-existent managed cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humioview-non-existent-managed-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateView := &humiov1alpha1.HumioView{
 				ObjectMeta: metav1.ObjectMeta{
@@ -792,7 +795,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			By("HumioView: Creating repository pointing to non-existent external cluster")
 			keyErr = types.NamespacedName{
 				Name:      "humioview-non-existent-external-cluster",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 			toCreateView = &humiov1alpha1.HumioView{
 				ObjectMeta: metav1.ObjectMeta{
@@ -829,7 +832,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start email action
 			By("HumioAction: Should handle action correctly")
 			emailActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-action",
 				ViewName:           "humio",
 				EmailProperties: &humiov1alpha1.HumioActionEmailProperties{
@@ -839,7 +842,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humioaction",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction := &humiov1alpha1.HumioAction{
@@ -914,7 +917,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start humio repo action
 			By("HumioAction: Should handle humio repo action correctly")
 			humioRepoActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-humio-repo-action",
 				ViewName:           "humio",
 				HumioRepositoryProperties: &humiov1alpha1.HumioActionRepositoryProperties{
@@ -924,7 +927,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humioaction",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -997,7 +1000,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start ops genie action
 			By("HumioAction: Should handle ops genie action correctly")
 			opsGenieActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-ops-genie-action",
 				ViewName:           "humio",
 				OpsGenieProperties: &humiov1alpha1.HumioActionOpsGenieProperties{
@@ -1007,7 +1010,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-ops-genie-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1080,7 +1083,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start pagerduty action
 			By("HumioAction: Should handle pagerduty action correctly")
 			pagerDutyActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-pagerduty-action",
 				ViewName:           "humio",
 				PagerDutyProperties: &humiov1alpha1.HumioActionPagerDutyProperties{
@@ -1091,7 +1094,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-pagerduty-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1166,7 +1169,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start slack post message action
 			By("HumioAction: Should handle slack post message action correctly")
 			slackPostMessageActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-slack-post-message-action",
 				ViewName:           "humio",
 				SlackPostMessageProperties: &humiov1alpha1.HumioActionSlackPostMessageProperties{
@@ -1180,7 +1183,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-slack-post-message-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1259,7 +1262,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start slack action
 			By("HumioAction: Should handle slack action correctly")
 			slackActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-slack-action",
 				ViewName:           "humio",
 				SlackProperties: &humiov1alpha1.HumioActionSlackProperties{
@@ -1272,7 +1275,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-slack-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1349,7 +1352,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start victor ops action
 			By("HumioAction: Should handle victor ops action correctly")
 			victorOpsActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-victor-ops-action",
 				ViewName:           "humio",
 				VictorOpsProperties: &humiov1alpha1.HumioActionVictorOpsProperties{
@@ -1360,7 +1363,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-victor-ops-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1435,7 +1438,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			// Start web hook action
 			By("HumioAction: Should handle web hook action correctly")
 			webHookActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-web-hook-action",
 				ViewName:           "humio",
 				WebhookProperties: &humiov1alpha1.HumioActionWebhookProperties{
@@ -1448,7 +1451,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-web-hook-action",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAction = &humiov1alpha1.HumioAction{
@@ -1531,7 +1534,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioActionSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-invalid-action",
 					ViewName:           "humio",
 				},
@@ -1564,7 +1567,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioActionSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-invalid-action",
 					ViewName:           "humio",
 					WebhookProperties:  &humiov1alpha1.HumioActionWebhookProperties{},
@@ -1594,7 +1597,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			By("HumioAlert: Should handle alert correctly")
 			dependentEmailActionSpec := humiov1alpha1.HumioActionSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-email-action",
 				ViewName:           "humio",
 				EmailProperties: &humiov1alpha1.HumioActionEmailProperties{
@@ -1604,7 +1607,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			actionKey := types.NamespacedName{
 				Name:      "humioaction",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateDependentAction := &humiov1alpha1.HumioAction{
@@ -1625,7 +1628,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 			}, testTimeout, testInterval).Should(Equal(humiov1alpha1.HumioActionStateExists))
 
 			alertSpec := humiov1alpha1.HumioAlertSpec{
-				ManagedClusterName: "humiocluster-shared",
+				ManagedClusterName: clusterKey.Name,
 				Name:               "example-alert",
 				ViewName:           "humio",
 				Query: humiov1alpha1.HumioQuery{
@@ -1643,7 +1646,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 
 			key = types.NamespacedName{
 				Name:      "humio-alert",
-				Namespace: "default",
+				Namespace: clusterKey.Namespace,
 			}
 
 			toCreateAlert := &humiov1alpha1.HumioAlert{
@@ -1745,7 +1748,7 @@ var _ = Describe("Humio Resources Controllers", func() {
 					Namespace: key.Namespace,
 				},
 				Spec: humiov1alpha1.HumioAlertSpec{
-					ManagedClusterName: "humiocluster-shared",
+					ManagedClusterName: clusterKey.Name,
 					Name:               "example-invalid-alert",
 					ViewName:           "humio",
 				},
