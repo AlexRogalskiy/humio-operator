@@ -1495,7 +1495,6 @@ func (r *HumioClusterReconciler) ensureInitialLicense(ctx context.Context, hc *h
 func (r *HumioClusterReconciler) ensureLicenseIsValid(ctx context.Context, hc *humiov1alpha1.HumioCluster) error {
 	r.Log.Info("ensuring license is valid")
 
-	var err error
 	licenseSecretKeySelector := licenseSecretKeyRefOrDefault(hc)
 	if licenseSecretKeySelector == nil {
 		return fmt.Errorf("no license secret key selector provided")
@@ -1503,6 +1502,13 @@ func (r *HumioClusterReconciler) ensureLicenseIsValid(ctx context.Context, hc *h
 
 	licenseSecret, err := kubernetes.GetSecret(ctx, r, licenseSecretKeySelector.Name, hc.Namespace)
 	if err != nil {
+		var allSecrets corev1.SecretList
+		listErr := r.Client.List(ctx, &allSecrets)
+		var allSecretNames []string
+		for i := range allSecrets.Items {
+			allSecretNames = append(allSecretNames, allSecrets.Items[i].Name)
+		}
+		r.Log.Error(fmt.Errorf("could not find secret"), fmt.Sprintf("all secrets found was: %#+v, err=%#+v", allSecretNames, listErr))
 		return err
 	}
 	if _, ok := licenseSecret.Data[licenseSecretKeySelector.Key]; !ok {
