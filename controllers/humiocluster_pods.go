@@ -779,12 +779,12 @@ func sanitizePod(hc *humiov1alpha1.HumioCluster, pod *corev1.Pod) *corev1.Pod {
 	pod.Spec.PreemptionPolicy = nil
 	pod.Spec.DeprecatedServiceAccount = ""
 	pod.Spec.Tolerations = tolerationsOrDefault(hc)
-	for i, _ := range pod.Spec.InitContainers {
+	for i := range pod.Spec.InitContainers {
 		pod.Spec.InitContainers[i].ImagePullPolicy = imagePullPolicyOrDefault(hc)
 		pod.Spec.InitContainers[i].TerminationMessagePath = ""
 		pod.Spec.InitContainers[i].TerminationMessagePolicy = ""
 	}
-	for i, _ := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].ImagePullPolicy = imagePullPolicyOrDefault(hc)
 		pod.Spec.Containers[i].TerminationMessagePath = ""
 		pod.Spec.Containers[i].TerminationMessagePolicy = ""

@@ -538,7 +538,10 @@ var _ = Describe("Humio Resources Controllers", func() {
 				},
 			}
 
-			if protocol == "http" {
+			if protocol == "https" {
+				toCreateExternalCluster.Spec.CASecretName = clusterKey.Name
+
+			} else {
 				toCreateExternalCluster.Spec.Insecure = true
 			}
 
