@@ -111,7 +111,7 @@ var _ = Describe("HumioCluster Controller", func() {
 					// - <CLUSTER_NAME>-admin-token: Holds the API token for the Humio API, created by the auth sidecar and uses secret type "Opaque".
 					// - <CLUSTER_NAME>-core-XXXXXX: Holds the node-specific TLS certificate in a JKS bundle, created by cert-manager because of a Certificate object and uses secret type kubernetes.io/tls.
 					var allSecrets corev1.SecretList
-					Expect(k8sClient.List(context.TODO(), &allSecrets)).To(Succeed())
+					Expect(k8sClient.List(ctx, &allSecrets)).To(Succeed())
 					for _, secret := range allSecrets.Items {
 						if secret.Type == corev1.SecretTypeServiceAccountToken {
 							// Secrets holding service account tokens are automatically GC'ed when the ServiceAccount goes away.
@@ -119,13 +119,14 @@ var _ = Describe("HumioCluster Controller", func() {
 						}
 						if secret.DeletionTimestamp == nil {
 							if strings.HasPrefix(secret.Name, cluster.Name) {
-								Expect(k8sClient.Delete(context.TODO(), &secret)).To(Succeed())
+								By(fmt.Sprintf("Cleaning up secret %s", secret.Name))
+								Expect(k8sClient.Delete(ctx, &secret)).To(Succeed())
 							}
 						}
 					}
 
 					By("Deleting the cluster")
-					Expect(k8sClient.Delete(context.Background(), &cluster)).To(Succeed())
+					Expect(k8sClient.Delete(ctx, &cluster)).To(Succeed())
 
 					if cluster.Spec.License.SecretKeyRef != nil {
 						By("Deleting the license secret")
