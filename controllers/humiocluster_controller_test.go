@@ -106,10 +106,6 @@ var _ = Describe("HumioCluster Controller", func() {
 					}
 
 					By("Cleaning up any secrets with the prefix being the cluster name")
-					// This includes the following objects which do not have an ownerReference pointing to the HumioCluster, so they will not automatically be cleaned up:
-					// - <CLUSTER_NAME>: Holds the CA bundle for the TLS certificates, created by cert-manager because of a Certificate object and uses secret type kubernetes.io/tls.
-					// - <CLUSTER_NAME>-admin-token: Holds the API token for the Humio API, created by the auth sidecar and uses secret type "Opaque".
-					// - <CLUSTER_NAME>-core-XXXXXX: Holds the node-specific TLS certificate in a JKS bundle, created by cert-manager because of a Certificate object and uses secret type kubernetes.io/tls.
 					var allSecrets corev1.SecretList
 					Expect(k8sClient.List(ctx, &allSecrets)).To(Succeed())
 					for _, secret := range allSecrets.Items {
@@ -117,8 +113,16 @@ var _ = Describe("HumioCluster Controller", func() {
 							// Secrets holding service account tokens are automatically GC'ed when the ServiceAccount goes away.
 							continue
 						}
+						// Only consider secrets not already being marked for deletion
 						if secret.DeletionTimestamp == nil {
-							if strings.HasPrefix(secret.Name, cluster.Name) {
+							if secret.Name == cluster.Name ||
+								secret.Name == fmt.Sprintf("%s-admin-token", cluster.Name) ||
+								strings.HasPrefix(secret.Name, fmt.Sprintf("%s-core-", cluster.Name)) {
+								// This includes the following objects which do not have an ownerReference pointing to the HumioCluster, so they will not automatically be cleaned up:
+								// - <CLUSTER_NAME>: Holds the CA bundle for the TLS certificates, created by cert-manager because of a Certificate object and uses secret type kubernetes.io/tls.
+								// - <CLUSTER_NAME>-admin-token: Holds the API token for the Humio API, created by the auth sidecar and uses secret type "Opaque".
+								// - <CLUSTER_NAME>-core-XXXXXX: Holds the node-specific TLS certificate in a JKS bundle, created by cert-manager because of a Certificate object and uses secret type kubernetes.io/tls.
+
 								By(fmt.Sprintf("Cleaning up secret %s used by %s", secret.Name, cluster.Name))
 								Expect(k8sClient.Delete(ctx, &secret)).To(Succeed())
 							}
