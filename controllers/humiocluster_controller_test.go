@@ -119,7 +119,7 @@ var _ = Describe("HumioCluster Controller", func() {
 						}
 						if secret.DeletionTimestamp == nil {
 							if strings.HasPrefix(secret.Name, cluster.Name) {
-								By(fmt.Sprintf("Cleaning up secret %s", secret.Name))
+								By(fmt.Sprintf("Cleaning up secret %s used by %s", secret.Name, cluster.Name))
 								Expect(k8sClient.Delete(ctx, &secret)).To(Succeed())
 							}
 						}
