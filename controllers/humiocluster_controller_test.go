@@ -125,11 +125,11 @@ var _ = Describe("HumioCluster Controller", func() {
 						}
 					}
 
-					By("Deleting the cluster")
+					By(fmt.Sprintf("Deleting the cluster: %s", cluster.Name))
 					Expect(k8sClient.Delete(ctx, &cluster)).To(Succeed())
 
 					if cluster.Spec.License.SecretKeyRef != nil {
-						By("Deleting the license secret")
+						By(fmt.Sprintf("Deleting the license secret %s used by %s", cluster.Spec.License.SecretKeyRef.Name, cluster.Name))
 						_ = k8sClient.Delete(ctx, &corev1.Secret{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      cluster.Spec.License.SecretKeyRef.Name,
