@@ -2,7 +2,7 @@ on: pull_request
 name: e2e
 jobs:
   e2e:
-    name: Run e2e tests using ${{ matrix.kind-k8s-version }}
+    name: ${{ matrix.kind-k8s-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
